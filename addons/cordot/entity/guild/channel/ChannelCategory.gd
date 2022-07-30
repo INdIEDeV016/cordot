@@ -1,30 +1,21 @@
-class_name BaseGuildVoiceChannel extends VoiceChannel
-
+class_name ChannelCategory extends Channel
 
 var name: String
 var guild_id: int
 var guild: Guild:
-	get = get_guild
+	get: return get_container().guilds.get(guild_id)
 var position: int
-var parent_id: int
-var parent: ChannelCategory:
-	get = get_parent
-var overwrites: Array
+var overwrites: Dictionary
 
 func _init(data: Dictionary) -> void:
-	super(data)
+	super(data["id"])
 	guild_id = data["guild_id"]
+	_update(data)
 
-func get_guild() -> Guild:
-	return Guild
-
-func get_parent() -> ChannelCategory:
-	return self.get_container().channels.get(self.parent_id) if self.parent_id != 0 else null
-
-func edit(data: GuildVoiceChannelEditData) -> BaseGuildVoiceChannel:
+func edit(data: GuildChannelEditData) -> ChannelCategory:
 	var bot_id: int = get_container().bot_id
 	var self_permissions: BitFlag = self.guild.get_member(bot_id).permissions_in(self.id)
-
+	
 	var fail: bool = false
 	if not self_permissions.MANAGE_CHANNELS:
 		push_error("Can not edit channel, missing MANAGE_CHANNELS permission")
@@ -34,32 +25,25 @@ func edit(data: GuildVoiceChannelEditData) -> BaseGuildVoiceChannel:
 		fail = true
 	if fail:
 		return await Awaiter.submit()
-	return get_rest().request_async(
+	return await get_rest().request_async(
 		DiscordREST.CHANNEL,
 		"edit_channel", [self.id, data.to_dict()]
 	)
 
 func get_class() -> String:
-	return "Guild.BaseGuildVoiceChannel"
+	return "ChannelCategory"
 
 func _update(data: Dictionary) -> void:
 	super(data)
 	name = data.get("name", name)
 	position = data.get("position", position)
-	parent_id = data.get("parent_id", parent_id)
 	overwrites = data.get("overwrites", overwrites)
 
 func _clone_data() -> Array:
-	var data: Array = super()
-
-	var arguments: Dictionary = data[0]
-	arguments["name"] = self.name
-	arguments["guild_id"] = self.guild_id
-	arguments["position"] = self.position
-	arguments["parent_id"] = self.parent_id
-	arguments["overwrites"] = self.overwrites.duplicate()
-
-	return data
-
-#	func __set(_value) -> void:
-#		pass
+	return [{
+		id = self.id,
+		name = self.name,
+		guild_id = self.guild_id,
+		position = self.position,
+		overwrites = self.overwrites.duplicate()
+	}]

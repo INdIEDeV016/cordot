@@ -1,20 +1,20 @@
-class_name ChannelCategory extends Channel
+class_name BaseGuildVoiceChannel extends VoiceChannel
+
 var name: String
 var guild_id: int
-var guild: Guild: # Make this variable of type `Guild`
-	get = get_guild
+var guild: Guild:
+	get: return get_container().guilds.get(guild_id)
 var position: int
-var overwrites: Dictionary
+var parent_id: int
+var parent: ChannelCategory:
+	get: return get_container().channels.get(parent_id)
+var overwrites: Array
 
 func _init(data: Dictionary) -> void:
-	super(data["id"])
+	super(data)
 	guild_id = data["guild_id"]
-	_update(data)
 
-func get_guild() -> Guild:
-	return self.get_container().guilds.get(guild_id)
-
-func edit(data: GuildChannelEditData) -> ChannelCategory:
+func edit(data: GuildVoiceChannelEditData) -> BaseGuildVoiceChannel:
 	var bot_id: int = get_container().bot_id
 	var self_permissions: BitFlag = self.guild.get_member(bot_id).permissions_in(self.id)
 
@@ -27,28 +27,29 @@ func edit(data: GuildChannelEditData) -> ChannelCategory:
 		fail = true
 	if fail:
 		return await Awaiter.submit()
-	return get_rest().request_async(
+	return await get_rest().request_async(
 		DiscordREST.CHANNEL,
 		"edit_channel", [self.id, data.to_dict()]
 	)
 
 func get_class() -> String:
-	return "ChannelCategory"
+	return "Guild.BaseGuildVoiceChannel"
 
 func _update(data: Dictionary) -> void:
 	super(data)
 	name = data.get("name", name)
 	position = data.get("position", position)
+	parent_id = data.get("parent_id", parent_id)
 	overwrites = data.get("overwrites", overwrites)
 
 func _clone_data() -> Array:
-	return [{
-		id = self.id,
-		name = self.name,
-		guild_id = self.guild_id,
-		position = self.position,
-		overwrites = self.overwrites.duplicate()
-	}]
-
-#	func __set(_value) -> void:
-#		pass
+	var data: Array = super()
+	
+	var arguments: Dictionary = data[0]
+	arguments["name"] = self.name
+	arguments["guild_id"] = self.guild_id
+	arguments["position"] = self.position
+	arguments["parent_id"] = self.parent_id
+	arguments["overwrites"] = self.overwrites.duplicate()
+	
+	return data
